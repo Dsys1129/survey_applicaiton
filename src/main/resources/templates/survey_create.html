@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Survey</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-group input[type="checkbox"] {
+            width: auto;
+        }
+        .form-group button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+        .questions-container {
+            margin-top: 20px;
+        }
+        .question {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .question h4 {
+            margin-top: 0;
+        }
+        .choices-container {
+            margin-top: 10px;
+        }
+        .choice {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .choice input[type="text"] {
+            flex: 1;
+        }
+        .choice button {
+            margin-left: 10px;
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Create Survey</h1>
+    <form id="surveyForm">
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" required></textarea>
+        </div>
+        <div class="questions-container" id="questionsContainer">
+            <h2>Questions</h2>
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="addQuestion()">Add Question</button>
+        </div>
+        <div class="form-group">
+            <button type="submit">Create Survey</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    let questionCount = 0;
+
+    document.getElementById('surveyForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const jsonData = {};
+
+        for (const [key, value] of formData.entries()) {
+            const keys = key.match(/[^\[\]]+/g);
+            if (keys.length === 1) {
+                jsonData[keys[0]] = value;
+            } else {
+                let nested = jsonData;
+                for (let i = 0; i < keys.length - 1; i++) {
+                    if (!nested[keys[i]]) nested[keys[i]] = isNaN(keys[i + 1]) ? {} : [];
+                    nested = nested[keys[i]];
+                }
+                const lastKey = keys[keys.length - 1];
+                if (!nested[lastKey]) nested[lastKey] = [];
+                if (Array.isArray(nested)) {
+                    if (!nested[lastKey]) nested[lastKey] = [];
+                    nested[lastKey].push(value);
+                } else {
+                    nested[lastKey] = value;
+                }
+            }
+        }
+
+        // Convert choices from object with indexes to array
+        if (jsonData.questions) {
+            jsonData.questions.forEach(question => {
+                if (question.choices) {
+                    question.choices = Object.values(question.choices);
+                }
+            });
+        }
+
+        console.log(JSON.stringify(jsonData, null, 2));
+
+        fetch('/api/surveys', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jsonData)
+        })
+            .then(response => {
+                if (response.status == 201) {
+                    window.location.href = '/';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+
+    function addQuestion() {
+        questionCount++;
+        const questionContainer = document.createElement('div');
+        questionContainer.className = 'question';
+        questionContainer.innerHTML = `
+        <h4>Question ${questionCount}</h4>
+        <div class="form-group">
+            <label for="questionText${questionCount}">Question Text</label>
+            <input type="description" id="questionText${questionCount}" name="questions[${questionCount - 1}][text]" required>
+        </div>
+        <div class="form-group">
+            <label for="questionType${questionCount}">Question Type</label>
+            <select id="questionType${questionCount}" name="questions[${questionCount - 1}][type]" onchange="handleQuestionTypeChange(${questionCount})" required>
+                <option value="">Select Type</option>
+                <option value="SUBJECTIVE">Subjective</option>
+                <option value="MULTIPLE_CHOICE_SINGLE">Multiple Choice (Single Select)</option>
+                <option value="MULTIPLE_CHOICE_MULTI">Multiple Choice (Multi Select)</option>
+            </select>
+        </div>
+        <div class="choices-container" id="choicesContainer${questionCount}" style="display: none;">
+            <h5>Choices</h5>
+        </div>
+        <div class="form-group" id="addChoiceButtonContainer${questionCount}" style="display: none;">
+            <button type="button" onclick="addChoice(${questionCount})">Add Choice</button>
+        </div>
+    `;
+        document.getElementById('questionsContainer').appendChild(questionContainer);
+    }
+
+    function handleQuestionTypeChange(questionNumber) {
+        const questionType = document.getElementById(`questionType${questionNumber}`).value;
+        const choicesContainer = document.getElementById(`choicesContainer${questionNumber}`);
+        const addChoiceButtonContainer = document.getElementById(`addChoiceButtonContainer${questionNumber}`);
+        if (questionType === 'MULTIPLE_CHOICE_SINGLE' || questionType === 'MULTIPLE_CHOICE_MULTI') {
+            choicesContainer.style.display = 'block';
+            addChoiceButtonContainer.style.display = 'block';
+        } else {
+            choicesContainer.style.display = 'none';
+            addChoiceButtonContainer.style.display = 'none';
+        }
+    }
+
+    function addChoice(questionNumber) {
+        const choicesContainer = document.getElementById(`choicesContainer${questionNumber}`);
+        const choiceCount = choicesContainer.children.length;
+        const choiceContainer = document.createElement('div');
+        choiceContainer.className = 'choice';
+        choiceContainer.innerHTML = `
+        <input type="text" name="questions[${questionNumber - 1}][choices][${choiceCount}][text]" required>
+        <button type="button" onclick="removeChoice(this)">Remove</button>
+    `;
+        choicesContainer.appendChild(choiceContainer);
+    }
+
+    function removeChoice(button) {
+        button.parentElement.remove();
+    }
+</script>
+</body>
+</html>

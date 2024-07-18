@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survey Result Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-group input[type="checkbox"],
+        .form-group input[type="radio"] {
+            width: auto;
+        }
+        .form-group button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
+        .questions-container {
+            margin-top: 20px;
+        }
+        .question {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .question h4 {
+            margin-top: 0;
+        }
+        .choices-container {
+            margin-top: 10px;
+        }
+        .choice {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .choice input[type="text"] {
+            flex: 1;
+        }
+        .choice button {
+            margin-left: 10px;
+            background-color: #dc3545;
+            color: white;
+        }
+        .percentage {
+            margin-left: 10px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Survey Statistics</h1>
+    <div id="surveyInfo" class="form-group">
+        <!-- Survey Information will be inserted here -->
+    </div>
+    <div id="questionsContainer" class="questions-container"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const surveyId = getSurveyIdFromUrl();
+
+        fetch(`/api/statistics/${surveyId}`)
+            .then(response => response.json())
+            .then(data => {
+                displaySurvey(data.data);
+            })
+            .catch(error => {
+                console.error('Error fetching survey:', error);
+            });
+
+        function getSurveyIdFromUrl() {
+            const pathParts = window.location.pathname.split('/');
+            return pathParts[pathParts.length - 1];
+        }
+        function displaySurvey(survey) {
+            displaySurveyInfo(survey);
+            const questionsContainer = document.getElementById('questionsContainer');
+            survey.questions.forEach((question, index) => {
+                const questionElement = document.createElement('div');
+                questionElement.className = 'question';
+                questionElement.innerHTML = `
+                    <h4>Question ${index + 1}</h4>
+                    <p>${question.description}</p>
+                    ${getQuestionHtml(question)}
+                `;
+                questionsContainer.appendChild(questionElement);
+            });
+        }
+
+        function displaySurveyInfo(survey) {
+            const surveyInfoContainer = document.getElementById('surveyInfo');
+            const surveyInfoHtml = `
+                <p><strong>Description:</strong> ${survey.surveyDescription}</p>
+            `;
+            surveyInfoContainer.innerHTML = surveyInfoHtml;
+        }
+
+        function getQuestionHtml(question) {
+            if (question.type === 'SUBJECTIVE') {
+                return `<div class="form-group">
+                        <textarea readonly>${question.choices[0].text || ''}</textarea>
+                    </div>`;
+            } else if (question.type === 'MULTIPLE_CHOICE_SINGLE') {
+                return `<div class="form-group choices-container">
+                        ${question.choices.map((choice) => `
+                            <div class="choice">
+                                <input type="radio" id="question${question.id}_choice${choice.id}" name="questions[${question.id}][answer]" value="${choice.id}" ${choice.checked ? 'checked' : ''} disabled>
+                                <label for="question${question.id}_choice${choice.id}">${choice.text}</label>
+                                <span class="percentage">(${choice.percentage.toFixed(2)}%)</span>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            } else if (question.type === 'MULTIPLE_CHOICE_MULTI') {
+                return `<div class="form-group choices-container">
+                        ${question.choices.map((choice) => `
+                            <div class="choice">
+                                <input type="checkbox" id="question${question.id}_choice${choice.id}" name="questions[${question.id}][answer][]" value="${choice.id}" ${choice.checked ? 'checked' : ''} disabled>
+                                <label for="question${question.id}_choice${choice.id}">${choice.text}</label>
+                                <span class="percentage">(${choice.percentage.toFixed(2)}%)</span>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            }
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.surveyapplication.mapper.UserMapper">
+    <select id="findByUserId" resultType="com.surveyapplication.domain.User" parameterType="String">
+        SELECT *
+        FROM users
+        WHERE user_id = #{userId};
+    </select>
+
+    <insert id="save" parameterType="com.surveyapplication.domain.User">
+        INSERT INTO users (user_id, password, type)
+        VALUES(#{userId}, #{password}, #{userType})
+    </insert>
+
+    <resultMap id="userResultMap" type="com.surveyapplication.domain.User">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="password" column="password"/>
+        <result property="userType" column="type" typeHandler="com.surveyapplication.config.UserTypeHandler"/>
+    </resultMap>
+
+    <select id="findByUserIdAndPassword" resultMap="userResultMap" resultType="com.surveyapplication.domain.User" parameterType="String">
+        SELECT id, user_id, password, type
+        FROM users
+        WHERE user_id = #{userId} AND password = #{password};
+    </select>
+</mapper>
